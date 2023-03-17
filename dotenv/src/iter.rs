@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::env;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::path::Path;
+use std::path::PathBuf;
 
 use crate::errors::*;
 use crate::parse;
@@ -12,13 +14,18 @@ pub struct Iter<R> {
 }
 
 impl<R: Read> Iter<R> {
-    pub fn new(reader: R) -> Iter<R> {
-        Iter {
+    pub fn new<P: AsRef<Path>>(path: Option<P>, reader: R) -> Self {
+        Self {
             lines: QuotedLines {
+                path: path.map(|path| path.as_ref().into()),
                 buf: BufReader::new(reader),
             },
             substitution_data: HashMap::new(),
         }
+    }
+
+    pub fn without_path(reader: R) -> Self {
+        Self::new(None as Option<&Path>, reader)
     }
 
     /// Loads all variables found in the `reader` into the environment,
@@ -56,7 +63,8 @@ impl<R: Read> Iter<R> {
     }
 
     fn remove_bom(&mut self) -> Result<()> {
-        let buffer = self.lines.buf.fill_buf().map_err(Error::Io)?;
+        let path = self.clone_path();
+        let buffer = self.lines.buf.fill_buf().map_err(|source| IoError::from_parts(path, source))?;
         // https://www.compart.com/en/unicode/U+FEFF
         if buffer.starts_with(&[0xEF, 0xBB, 0xBF]) {
             // remove the BOM from the bufreader
@@ -64,9 +72,19 @@ impl<R: Read> Iter<R> {
         }
         Ok(())
     }
+
+    /// Borrows the [std::path::Path] of the file being read by this [Iter].
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.lines.path.as_ref()
+    }
+
+    pub fn clone_path(&self) -> Option<PathBuf> {
+        self.lines.path.clone()
+    }
 }
 
 struct QuotedLines<B> {
+    path: Option<PathBuf>,
     buf: B,
 }
 
@@ -137,7 +155,7 @@ impl<B: BufRead> Iterator for QuotedLines<B> {
                     ParseState::Complete => return None,
                     _ => {
                         let len = buf.len();
-                        return Some(Err(Error::LineParse(buf, len)));
+                        return Some(Err(ParseError::from_parts(self.path.clone(), buf, len).into()));
                     }
                 },
                 Ok(_n) => {
@@ -172,7 +190,7 @@ impl<B: BufRead> Iterator for QuotedLines<B> {
                         }
                     }
                 }
-                Err(e) => return Some(Err(Error::Io(e))),
+                Err(e) => return Some(Err(IoError::from_parts(self.path.clone(), e).into())),
             }
         }
     }
@@ -189,7 +207,7 @@ impl<R: Read> Iterator for Iter<R> {
                 None => return None,
             };
 
-            match parse::parse_line(&line, &mut self.substitution_data) {
+            match parse::parse_line(None, &line, &mut self.substitution_data) {
                 Ok(Some(result)) => return Some(Ok(result)),
                 Ok(None) => {}
                 Err(err) => return Some(Err(err)),

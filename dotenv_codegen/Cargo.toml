@@ -3,7 +3,7 @@ proc-macro = true
 
 [package]
 name = "dotenvy_macro"
-version = "0.15.1"
+version = "0.16.0"
 authors = [
   "Santiago Lapresta <santiago.lapresta@gmail.com>",
   "Craig Hills <chills@gmail.com>",
@@ -11,6 +11,7 @@ authors = [
   "Alice Maz <alice@alicemaz.com>",
   "Sean Griffin <sean@seantheprogrammer.com>",
   "Allan Zhang <al@ayz.ai>",
+  "Andrew Christensen <andrew@andrewtc.com>"
 ]
 readme = "README.md"
 keywords = ["dotenv", "env", "environment", "settings", "config"]
@@ -25,4 +26,4 @@ rust-version = "1.56.1"
 proc-macro2 = "1"
 quote = "1"
 syn = "1"
-dotenvy = { version = "0.15", path = "../dotenv" }
+dotenvy = { version = "0.16", path = "../dotenv" }

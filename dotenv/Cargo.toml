@@ -1,6 +1,6 @@
 [package]
 name = "dotenvy"
-version = "0.15.6"
+version = "0.16.0"
 authors = [
   "Noemi Lapresta <noemi.lapresta@gmail.com>",
   "Craig Hills <chills@gmail.com>",
@@ -10,6 +10,7 @@ authors = [
   "Adam Sharp <adam@sharplet.me>",
   "Arpad Borsos <arpad.borsos@googlemail.com>",
   "Allan Zhang <al@ayz.ai>",
+  "Andrew Christensen <andrew@andrewtc.com>",
 ]
 description = "A well-maintained fork of the dotenv crate"
 homepage = "https://github.com/allan2/dotenvy"

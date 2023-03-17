@@ -83,7 +83,9 @@ pub fn vars() -> Vars {
 /// # }
 /// ```
 pub fn from_path<P: AsRef<Path>>(path: P) -> Result<()> {
-    let iter = Iter::new(File::open(path).map_err(Error::Io)?);
+    let path_buf = path.as_ref().to_path_buf();
+    let file = File::open(path_buf).map_err(|source| IoError::from_parts(Some(path.as_ref()), source))?;
+    let iter = Iter::new(Some(path.as_ref()), file);
     iter.load()
 }
 
@@ -108,7 +110,9 @@ pub fn from_path<P: AsRef<Path>>(path: P) -> Result<()> {
 /// # }
 /// ```
 pub fn from_path_override<P: AsRef<Path>>(path: P) -> Result<()> {
-    let iter = Iter::new(File::open(path).map_err(Error::Io)?);
+    let path_buf = path.as_ref().to_path_buf();
+    let file = File::open(path_buf).map_err(|source| IoError::from_parts(Some(path.as_ref()), source))?;
+    let iter = Iter::new(Some(path.as_ref()), file);
     iter.load_override()
 }
 
@@ -127,8 +131,10 @@ pub fn from_path_override<P: AsRef<Path>>(path: P) -> Result<()> {
 /// #     Ok(())
 /// # }
 /// ```
-pub fn from_path_iter<P: AsRef<Path>>(path: P) -> Result<Iter<File>> {
-    Ok(Iter::new(File::open(path).map_err(Error::Io)?))
+pub fn from_path_iter<'a, P: AsRef<Path>>(path: P) -> Result<Iter<File>> {
+    let path_buf = path.as_ref().to_path_buf();
+    let file = File::open(path_buf).map_err(|source| IoError::from_parts(Some(path.as_ref()), source))?;
+    Ok(Iter::new(Some(path.as_ref()), file))
 }
 
 /// Loads environment variables from the specified file.
@@ -159,7 +165,8 @@ pub fn from_path_iter<P: AsRef<Path>>(path: P) -> Result<Iter<File>> {
 /// # }
 /// ```
 pub fn from_filename<P: AsRef<Path>>(filename: P) -> Result<PathBuf> {
-    let (path, iter) = Finder::new().filename(filename.as_ref()).find()?;
+    let iter = Finder::new().filename(filename.as_ref()).find()?;
+    let path = iter.clone_path().expect("Expected a path after finding file");
     iter.load()?;
     Ok(path)
 }
@@ -191,7 +198,8 @@ pub fn from_filename<P: AsRef<Path>>(filename: P) -> Result<PathBuf> {
 /// # }
 /// ```
 pub fn from_filename_override<P: AsRef<Path>>(filename: P) -> Result<PathBuf> {
-    let (path, iter) = Finder::new().filename(filename.as_ref()).find()?;
+    let iter = Finder::new().filename(filename.as_ref()).find()?;
+    let path = iter.clone_path().expect("Expected a path after finding file");
     iter.load_override()?;
     Ok(path)
 }
@@ -210,8 +218,8 @@ pub fn from_filename_override<P: AsRef<Path>>(filename: P) -> Result<PathBuf> {
 /// # }
 /// ```
 
-pub fn from_filename_iter<P: AsRef<Path>>(filename: P) -> Result<Iter<File>> {
-    let (_, iter) = Finder::new().filename(filename.as_ref()).find()?;
+pub fn from_filename_iter<'a, P: 'a + AsRef<Path>>(filename: P) -> Result<Iter<File>> {
+    let iter = Finder::new().filename(filename.as_ref()).find()?;
     Ok(iter)
 }
 
@@ -244,7 +252,7 @@ pub fn from_filename_iter<P: AsRef<Path>>(filename: P) -> Result<Iter<File>> {
 /// # }
 /// ```
 pub fn from_read<R: io::Read>(reader: R) -> Result<()> {
-    let iter = Iter::new(reader);
+    let iter = Iter::without_path(reader);
     iter.load()?;
     Ok(())
 }
@@ -276,7 +284,7 @@ pub fn from_read<R: io::Read>(reader: R) -> Result<()> {
 /// # }
 /// ```
 pub fn from_read_override<R: io::Read>(reader: R) -> Result<()> {
-    let iter = Iter::new(reader);
+    let iter = Iter::without_path(reader);
     iter.load_override()?;
     Ok(())
 }
@@ -301,7 +309,7 @@ pub fn from_read_override<R: io::Read>(reader: R) -> Result<()> {
 /// # }
 /// ```
 pub fn from_read_iter<R: io::Read>(reader: R) -> Iter<R> {
-    Iter::new(reader)
+    Iter::without_path(reader)
 }
 
 /// Loads the *.env* file from the current directory or parents. This is typically what you want.
@@ -326,7 +334,8 @@ pub fn from_read_iter<R: io::Read>(reader: R) -> Iter<R> {
 /// # }
 /// ```
 pub fn dotenv() -> Result<PathBuf> {
-    let (path, iter) = Finder::new().find()?;
+    let iter = Finder::new().find()?;
+    let path = iter.clone_path().expect("Expected a path after finding file");
     iter.load()?;
     Ok(path)
 }
@@ -349,7 +358,8 @@ pub fn dotenv() -> Result<PathBuf> {
 /// # }
 /// ```
 pub fn dotenv_override() -> Result<PathBuf> {
-    let (path, iter) = Finder::new().find()?;
+    let iter = Finder::new().find()?;
+    let path = iter.clone_path().expect("Expected a path after finding file");
     iter.load_override()?;
     Ok(path)
 }
@@ -368,6 +378,6 @@ pub fn dotenv_override() -> Result<PathBuf> {
 /// # }
 /// ```
 pub fn dotenv_iter() -> Result<iter::Iter<File>> {
-    let (_, iter) = Finder::new().find()?;
+    let iter = Finder::new().find()?;
     Ok(iter)
 }
